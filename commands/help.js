@@ -1,248 +1,171 @@
 const settings = require('../settings');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 async function helpCommand(sock, chatId, message) {
     const start = Date.now();
 
-    let mode = 'public';
+    let mode = 'Public';
     try {
         const data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-        if (typeof data.isPublic === 'boolean') mode = data.isPublic ? 'public' : 'private';
+        if (typeof data.isPublic === 'boolean') mode = data.isPublic ? 'Public' : 'Private';
     } catch (_) {}
 
     const ping = Date.now() - start;
+    const ramMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    const uptimeSec = Math.floor(process.uptime());
+    const uptimeStr = `${Math.floor(uptimeSec/3600)}h ${Math.floor((uptimeSec%3600)/60)}m`;
     const userName = message.pushName || 'Vigilante';
+    const hour = new Date().getHours();
+    const sleeping = hour >= 1 && hour < 6;
 
-    const helpMessage = `
-╔═══🦇 *IANENIGMA MD BOT* 🦇═══╗
-║   Version: *v1.0.0* 
-║   by *IANENIGMA* 
-║   YT: *Mr Unique Hacker*
-║   Status: *VIGILANTE MODE*
-║   Mode: ${mode} | Ping: ${ping}ms
-╚═══🦇════════════════════🦇═══╝
+    const menu = `🦇 *IANENIGMA MD BOT* 🦇
+_"I am vengeance. I am the night."_
 
-*"I am vengeance. I am the night. I am IANENIGMA."*
+┌─── 👤 *WELCOME, ${userName.toUpperCase()}*
+│ 📡 Ping: *${ping}ms*
+│ ⏱️ Uptime: *${uptimeStr}*
+│ 💾 RAM: *${ramMB}MB*
+│ 🔓 Mode: *${mode}*
+│ 🌙 Sleep: *${sleeping ? 'Active (1am–6am)' : 'Off'}*
+│ 🔖 Version: *v1.0.0*
+└────────────────────
 
-╔═══⚡ *GENERAL ARSENAL* ⚡═══╗
-║ ➤ .help
-║ ➤ .menu
-║ ➤ .ping
-║ ➤ .alive
-║ ➤ .tts <text>
-║ ➤ .owner
-║ ➤ .joke
-║ ➤ .quote
-║ ➤ .fact
-║ ➤ .weather <city>
-║ ➤ .news
-║ ➤ .attp <text>
-║ ➤ .lyrics <song>
-║ ➤ .8ball <question>
-║ ➤ .groupinfo
-║ ➤ .staff
-║ ➤ .vv
-║ ➤ .trt <text> <lang>
-║ ➤ .ss <link>
-║ ➤ .jid
-║ ➤ .url
-╚═══⚡══════════════════════⚡═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ *GENERAL ARSENAL* — 17 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .help  ▸ .menu  ▸ .ping
+▸ .alive  ▸ .owner  ▸ .tts <text>
+▸ .joke  ▸ .quote  ▸ .fact
+▸ .weather <city>  ▸ .news
+▸ .attp <text>  ▸ .lyrics <song>
+▸ .8ball <question>  ▸ .groupinfo
+▸ .vv  ▸ .trt <text> <lang>
 
-╔═══👮 *GCPD PROTOCOLS* 👮═══╗
-║ ➤ .ban @user
-║ ➤ .promote @user
-║ ➤ .demote @user
-║ ➤ .mute <minutes>
-║ ➤ .unmute
-║ ➤ .delete / .del
-║ ➤ .kick @user
-║ ➤ .warnings @user
-║ ➤ .warn @user
-║ ➤ .antilink
-║ ➤ .antibadword
-║ ➤ .clear
-║ ➤ .tag <message>
-║ ➤ .tagall
-║ ➤ .tagnotadmin
-║ ➤ .hidetag <message>
-║ ➤ .chatbot
-║ ➤ .resetlink
-║ ➤ .antitag <on/off>
-║ ➤ .welcome <on/off>
-║ ➤ .goodbye <on/off>
-║ ➤ .setgdesc <description>
-║ ➤ .setgname <name>
-║ ➤ .setgpp (reply to image)
-╚═══👮══════════════════════👮═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+👮 *GCPD PROTOCOLS* — 18 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .ban @user  ▸ .unban @user
+▸ .promote @user  ▸ .demote @user
+▸ .mute <mins>  ▸ .unmute
+▸ .kick @user  ▸ .delete / .del
+▸ .warn @user  ▸ .warnings @user
+▸ .antilink  ▸ .antibadword
+▸ .antitag <on/off>  ▸ .clear
+▸ .tag <msg>  ▸ .tagall
+▸ .tagnotadmin  ▸ .hidetag <msg>
 
-╔═══🔒 *WAYNE TECH ACCESS* 🔒═══╗
-║ ➤ .mode <public/private>
-║ ➤ .clearsession
-║ ➤ .antidelete
-║ ➤ .cleartmp
-║ ➤ .update
-║ ➤ .settings
-║ ➤ .setpp (reply to image)
-║ ➤ .autoreact <on/off>
-║ ➤ .autostatus <on/off>
-║ ➤ .autostatus react <on/off>
-║ ➤ .autotyping <on/off>
-║ ➤ .autoread <on/off>
-║ ➤ .anticall <on/off>
-║ ➤ .pmblocker <on/off/status>
-║ ➤ .pmblocker setmsg <text>
-║ ➤ .setmention (reply to msg)
-║ ➤ .mention <on/off>
-╚═══🔒══════════════════════🔒═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🏰 *GROUP MANAGEMENT* — 8 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .chatbot  ▸ .resetlink
+▸ .welcome <on/off>  ▸ .goodbye <on/off>
+▸ .setgdesc <text>  ▸ .setgname <name>
+▸ .setgpp  ▸ .topmembers
 
-╔═══🎨 *FORENSICS LAB* 🎨═══╗
-║ ➤ .blur (reply to image)
-║ ➤ .simage (reply to sticker)
-║ ➤ .sticker (reply to image)
-║ ➤ .removebg
-║ ➤ .remini
-║ ➤ .crop (reply to image)
-║ ➤ .tgsticker <link>
-║ ➤ .meme
-║ ➤ .take <packname>
-║ ➤ .emojimix <emj1>+<emj2>
-║ ➤ .igs <instagram link>
-║ ➤ .igsc <instagram link>
-╚═══🎨══════════════════════🎨═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🔒 *WAYNE TECH — OWNER* — 11 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .mode <public/private>
+▸ .autotyping <on/off>  ▸ .autoread <on/off>
+▸ .autostatus <on/off>  ▸ .antidelete
+▸ .anticall <on/off>  ▸ .pmblocker <on/off>
+▸ .setpp  ▸ .cleartmp
+▸ .clearsession  ▸ .settings
 
-╔═══🕵️ *DISGUISE PROTOCOLS* 🕵️═══╗
-║ ➤ .pies <country>
-║ ➤ .china
-║ ➤ .indonesia
-║ ➤ .japan
-║ ➤ .korea
-║ ➤ .hijab
-╚═══🕵️══════════════════════🕵️═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 *BATCOMPUTER AI* — 5 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .gpt <question>   ▸ .gemini <question>
+▸ .imagine <prompt>  ▸ .flux <prompt>
+▸ .sora <prompt>
 
-╔═══🎮 *ARKHAM GAMES* 🎮═══╗
-║ ➤ .tictactoe @user
-║ ➤ .hangman
-║ ➤ .guess <letter>
-║ ➤ .trivia
-║ ➤ .answer <answer>
-║ ➤ .truth
-║ ➤ .dare
-╚═══🎮══════════════════════🎮═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🎨 *FORENSICS LAB* — 10 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .sticker  ▸ .simage  ▸ .take <pack>
+▸ .removebg  ▸ .remini  ▸ .crop
+▸ .emojimix <e1>+<e2>  ▸ .meme
+▸ .attp <text>  ▸ .tgsticker
 
-╔═══🤖 *BATCOMPUTER AI* 🤖═══╗
-║ ➤ .gpt <question>
-║ ➤ .gemini <question>
-║ ➤ .imagine <prompt>
-║ ➤ .flux <prompt>
-║ ➤ .sora <prompt>
-╚═══🤖══════════════════════🤖═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+📥 *BAT-SIGNAL DOWNLOADS* — 7 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .play <song>  ▸ .song <name>
+▸ .video <name>  ▸ .spotify <q>
+▸ .instagram <link>  ▸ .tiktok <link>
+▸ .facebook <link>
 
-╔═══🃏 *JOKER'S PLAYGROUND* 🃏═══╗
-║ ➤ .compliment @user
-║ ➤ .insult @user
-║ ➤ .flirt
-║ ➤ .shayari
-║ ➤ .goodnight
-║ ➤ .roseday
-║ ➤ .character @user
-║ ➤ .wasted @user
-║ ➤ .ship @user
-║ ➤ .simp @user
-║ ➤ .stupid @user [text]
-╚═══🃏══════════════════════🃏═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🎮 *ARKHAM GAMES* — 7 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .tictactoe @user  ▸ .hangman
+▸ .guess <letter>  ▸ .trivia
+▸ .answer <ans>  ▸ .truth  ▸ .dare
 
-╔═══🔤 *RIDDLER'S CIPHERS* 🔤═══╗
-║ ➤ .metallic <text>
-║ ➤ .ice <text>
-║ ➤ .snow <text>
-║ ➤ .impressive <text>
-║ ➤ .matrix <text>
-║ ➤ .light <text>
-║ ➤ .neon <text>
-║ ➤ .devil <text>
-║ ➤ .purple <text>
-║ ➤ .thunder <text>
-║ ➤ .leaves <text>
-║ ➤ .1917 <text>
-║ ➤ .arena <text>
-║ ➤ .hacker <text>
-║ ➤ .sand <text>
-║ ➤ .blackpink <text>
-║ ➤ .glitch <text>
-║ ➤ .fire <text>
-╚═══🔤══════════════════════🔤═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🃏 *JOKER'S PLAYGROUND* — 11 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .compliment @user  ▸ .insult @user
+▸ .flirt  ▸ .shayari  ▸ .goodnight
+▸ .roseday  ▸ .character @user
+▸ .wasted @user  ▸ .ship @user
+▸ .simp @user  ▸ .stupid @user
 
-╔═══📥 *BAT SIGNAL DOWNLOADS* 📥═══╗
-║ ➤ .play <song name>
-║ ➤ .song <song name>
-║ ➤ .spotify <query>
-║ ➤ .instagram <link>
-║ ➤ .facebook <link>
-║ ➤ .tiktok <link>
-║ ➤ .video <song name>
-║ ➤ .ytmp4 <link>
-╚═══📥══════════════════════📥═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🔤 *RIDDLER'S CIPHERS* — 17 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .metallic  ▸ .ice  ▸ .snow
+▸ .matrix  ▸ .neon  ▸ .fire
+▸ .glitch  ▸ .hacker  ▸ .devil
+▸ .thunder  ▸ .sand  ▸ .light
+▸ .purple  ▸ .leaves  ▸ .1917
+▸ .arena  ▸ .blackpink
 
-╔═══🎭 *HARLEY'S CHAOS* 🎭═══╗
-║ ➤ .heart
-║ ➤ .horny
-║ ➤ .circle
-║ ➤ .lgbt
-║ ➤ .lolice
-║ ➤ .its-so-stupid
-║ ➤ .namecard
-║ ➤ .oogway
-║ ➤ .tweet
-║ ➤ .ytcomment
-║ ➤ .comrade
-║ ➤ .gay
-║ ➤ .glass
-║ ➤ .jail
-║ ➤ .passed
-║ ➤ .triggered
-╚═══🎭══════════════════════🎭═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+😽 *CATWOMAN'S CLOSET* — 8 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .hug  ▸ .kiss  ▸ .pat  ▸ .poke
+▸ .cry  ▸ .wink  ▸ .nom  ▸ .facepalm
 
-╔═══😽 *CATWOMAN'S CLOSET* 😽═══╗
-║ ➤ .nom
-║ ➤ .poke
-║ ➤ .cry
-║ ➤ .kiss
-║ ➤ .pat
-║ ➤ .hug
-║ ➤ .wink
-║ ➤ .facepalm
-╚═══😽══════════════════════😽═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🎭 *HARLEY'S CHAOS* — 14 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .heart  ▸ .jail  ▸ .wasted
+▸ .triggered  ▸ .gay  ▸ .glass
+▸ .tweet  ▸ .ytcomment  ▸ .comrade
+▸ .namecard  ▸ .oogway  ▸ .passed
+▸ .its-so-stupid  ▸ .horny
 
-╔═══💻 *WAYNE ENTERPRISES* 💻═══╗
-║ ➤ .git
-║ ➤ .github
-║ ➤ .sc
-║ ➤ .script
-║ ➤ .repo
-╚═══💻══════════════════════💻═══╝
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🕵️ *DISGUISE PROTOCOLS* — 5 cmds
+━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ .pies <country>  ▸ .china
+▸ .indonesia  ▸ .japan  ▸ .korea
 
-*The night is darkest just before dawn.*
-*Type .help <command> for details*
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🦇 *Gotham needs IANENIGMA MD BOT* 🦇
-`;
+🦇 *Total: 138+ commands*
+📌 _Type_ *.help* _to see this menu_
+💬 _Type_ *.alive* _for bot status_
+
+_The night is darkest just before dawn._`;
 
     try {
         const imagePath = path.join(__dirname, '../assets/bot_image.jpg');
-
         if (fs.existsSync(imagePath)) {
             const imageBuffer = fs.readFileSync(imagePath);
             await sock.sendMessage(chatId, {
                 image: imageBuffer,
-                caption: helpMessage
+                caption: menu
             }, { quoted: message });
         } else {
-            await sock.sendMessage(chatId, { text: helpMessage }, { quoted: message });
+            await sock.sendMessage(chatId, { text: menu }, { quoted: message });
         }
     } catch (error) {
         console.error('Error in help command:', error);
-        await sock.sendMessage(chatId, { text: helpMessage });
+        await sock.sendMessage(chatId, { text: menu }, { quoted: message });
     }
 }
 

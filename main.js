@@ -142,6 +142,7 @@ const { anticallCommand, readState: readAnticallState } = require('./commands/an
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
+const { isSleepTime, simulateTyping, shouldIgnoreMessage, patchSockWithFooter, reactToMessage } = require('./lib/antiban');
 
 // Global settings
 global.packname = settings.packname;
@@ -169,6 +170,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         const message = messages[0];
         if (!message?.message) return;
+
+        // ── ANTI-BAN: patch footer onto every text reply (once per socket) ──
+        patchSockWithFooter(sock);
+
+        // ── ANTI-BAN: silently ignore broadcasts & heavily-forwarded messages ─
+        if (shouldIgnoreMessage(message)) return;
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
@@ -317,6 +324,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
             return;
         }
 
+        // ── ANTI-BAN: sleep mode — ignore non-owner commands between 1am–6am ─
+        if (isSleepTime() && !isOwnerOrSudoCheck) {
+            await sock.sendMessage(chatId, {
+                text: `🌙 *IANENIGMA MD BOT* is in sleep mode (1am–6am).\nCommands resume at 6am. Stay safe, Gotham.`
+            }, { quoted: message });
+            return;
+        }
+
         // List of admin commands
         const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antitag', '.setgdesc', '.setgname', '.setgpp'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
@@ -365,8 +380,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // Command handlers - Execute commands immediately without waiting for typing indicator
-        // We'll show typing indicator after command execution if needed
+        // ── ANTI-BAN: react with ⚡ + simulate typing before every command ──
+        await reactToMessage(sock, message, '⚡');
+        await simulateTyping(sock, chatId, userMessage);
+
+        // Command handlers
         let commandExecuted = false;
 
         switch (true) {
