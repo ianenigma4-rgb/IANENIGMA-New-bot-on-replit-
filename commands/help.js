@@ -71,7 +71,8 @@ _"I am vengeance. I am the night."_
 ▸ .autotyping <on/off>  ▸ .autoread <on/off>
 ▸ .autostatus <on/off>  ▸ .antidelete
 ▸ .anticall <on/off>  ▸ .pmblocker <on/off>
-▸ .setpp  ▸ .setmenuimage
+▸ .setpp  ▸ .setmenuimage  ▸ .setbio <text>
+▸ .antidelete on/off  ▸ .antidelete inchat on/off
 ▸ .cleartmp  ▸ .clearsession  ▸ .settings
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -144,6 +144,7 @@ const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
 const { isSleepTime, simulateTyping, shouldIgnoreMessage, patchSockWithFooter, reactToMessage } = require('./lib/antiban');
 const setMenuImageCommand = require('./commands/setmenuimage');
+const setBioCommand = require('./commands/setbio');
 
 // Global settings
 global.packname = settings.packname;
@@ -389,7 +390,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.setmenuimage', '.setmenu', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.setmenuimage', '.setmenu', '.setbio', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         let isSenderAdmin = false;
@@ -974,6 +975,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.setmenuimage' || userMessage === '.setmenu':
                 await setMenuImageCommand(sock, chatId, message);
+                break;
+            case userMessage.startsWith('.setbio'):
+                await setBioCommand(sock, chatId, message, rawText);
                 break;
             case userMessage.startsWith('.setgdesc'):
                 {
