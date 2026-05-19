@@ -71,8 +71,8 @@ _"I am vengeance. I am the night."_
 ▸ .autotyping <on/off>  ▸ .autoread <on/off>
 ▸ .autostatus <on/off>  ▸ .antidelete
 ▸ .anticall <on/off>  ▸ .pmblocker <on/off>
-▸ .setpp  ▸ .cleartmp
-▸ .clearsession  ▸ .settings
+▸ .setpp  ▸ .setmenuimage
+▸ .cleartmp  ▸ .clearsession  ▸ .settings
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 *BATCOMPUTER AI* — 5 cmds

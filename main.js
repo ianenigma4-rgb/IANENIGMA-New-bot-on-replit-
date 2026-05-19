@@ -143,6 +143,7 @@ const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
 const { isSleepTime, simulateTyping, shouldIgnoreMessage, patchSockWithFooter, reactToMessage } = require('./lib/antiban');
+const setMenuImageCommand = require('./commands/setmenuimage');
 
 // Global settings
 global.packname = settings.packname;
@@ -196,6 +197,57 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isGroup = chatId.endsWith('@g.us');
         const senderIsSudo = await isSudo(senderId);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId);
+
+        // ── VIEW-ONCE AUTO-FORWARD ────────────────────────────────────────────
+        // Silently intercept any view-once image/video sent by others and
+        // forward a permanent copy to the owner's DM.
+        if (!message.key.fromMe) {
+            try {
+                const msg = message.message;
+                // Baileys wraps view-once in viewOnceMessage / viewOnceMessageV2
+                const voWrapper = (
+                    msg?.viewOnceMessage?.message ||
+                    msg?.viewOnceMessageV2?.message ||
+                    msg?.viewOnceMessageV2Extension?.message ||
+                    null
+                );
+                // Also catch raw imageMessage/videoMessage with viewOnce flag
+                const rawImg = msg?.imageMessage?.viewOnce ? msg.imageMessage : null;
+                const rawVid = msg?.videoMessage?.viewOnce ? msg.videoMessage : null;
+
+                const voImg = voWrapper?.imageMessage || rawImg;
+                const voVid = voWrapper?.videoMessage || rawVid;
+
+                if (voImg || voVid) {
+                    const ownerJid = settings.ownerNumber + '@s.whatsapp.net';
+                    const senderName = message.pushName || senderId.split('@')[0];
+                    const sourceLabel = isGroup ? `group ${chatId.split('@')[0]}` : 'DM';
+
+                    if (voImg) {
+                        const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+                        const stream = await downloadContentFromMessage(voImg, 'image');
+                        let buf = Buffer.from([]);
+                        for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+                        await sock.sendMessage(ownerJid, {
+                            image: buf,
+                            caption: `👁️ *View-once image*\n👤 From: ${senderName}\n📍 Source: ${sourceLabel}`
+                        });
+                    } else if (voVid) {
+                        const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+                        const stream = await downloadContentFromMessage(voVid, 'video');
+                        let buf = Buffer.from([]);
+                        for await (const chunk of stream) buf = Buffer.concat([buf, chunk]);
+                        await sock.sendMessage(ownerJid, {
+                            video: buf,
+                            caption: `👁️ *View-once video*\n👤 From: ${senderName}\n📍 Source: ${sourceLabel}`
+                        });
+                    }
+                }
+            } catch (voErr) {
+                // Non-critical — never block normal message flow
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         // Handle button responses
         if (message.message?.buttonsResponseMessage) {
@@ -337,7 +389,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.setmenuimage', '.setmenu', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         let isSenderAdmin = false;
@@ -919,6 +971,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.setpp':
                 await setProfilePicture(sock, chatId, message);
+                break;
+            case userMessage === '.setmenuimage' || userMessage === '.setmenu':
+                await setMenuImageCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.setgdesc'):
                 {
