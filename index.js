@@ -3,6 +3,11 @@
  * Rebranded from Knight Bot
  * Batman / Gotham theme
  */
+
+// ── Load .env file first (before anything else reads process.env) ────────────
+require('dotenv').config({ path: require('path').join(__dirname, '.env') })
+// ─────────────────────────────────────────────────────────────────────────────
+
 const express = require('express')
 const app = express()
 const port = process.env.PORT || 3000
@@ -44,8 +49,13 @@ const SESSION_DIR = require('path').join(__dirname, 'session')
         const decoded = Buffer.from(raw, 'base64').toString('utf8')
         // Validate JSON before writing
         JSON.parse(decoded)
+        // Option A takes priority: never overwrite an existing creds.json
+        if (fs2.existsSync(credsPath)) {
+            console.log('✅ session/creds.json already exists — SESSION_ID not applied (Option A wins)')
+            return
+        }
         fs2.writeFileSync(credsPath, decoded, 'utf8')
-        console.log('✅ Session loaded from SESSION_ID — skipping pairing')
+        console.log('✅ Session loaded from SESSION_ID env var — skipping pairing')
     } catch (e) {
         console.error('⚠️  SESSION_ID decode failed:', e.message)
         console.error('    Make sure SESSION_ID is the base64 string from the pairing site (with no extra spaces)')
