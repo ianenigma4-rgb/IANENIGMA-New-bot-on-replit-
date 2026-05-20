@@ -2,45 +2,57 @@ const os = require('os');
 const settings = require('../settings.js');
 
 function formatTime(seconds) {
-    const days = Math.floor(seconds / (24 * 60 * 60));
-    seconds = seconds % (24 * 60 * 60);
-    const hours = Math.floor(seconds / (60 * 60));
-    seconds = seconds % (60 * 60);
+    const days = Math.floor(seconds / 86400);
+    seconds = seconds % 86400;
+    const hours = Math.floor(seconds / 3600);
+    seconds = seconds % 3600;
     const minutes = Math.floor(seconds / 60);
     seconds = Math.floor(seconds % 60);
+    let t = '';
+    if (days > 0) t += `${days}d `;
+    if (hours > 0) t += `${hours}h `;
+    if (minutes > 0) t += `${minutes}m `;
+    if (seconds > 0 || t === '') t += `${seconds}s`;
+    return t.trim();
+}
 
-    let time = '';
-    if (days > 0) time += `${days}d `;
-    if (hours > 0) time += `${hours}h `;
-    if (minutes > 0) time += `${minutes}m `;
-    if (seconds > 0 || time === '') time += `${seconds}s`;
-
-    return time.trim();
+function memBar(used, total, len = 10) {
+    const filled = Math.min(len, Math.round((used / total) * len));
+    return '█'.repeat(filled) + '░'.repeat(len - filled);
 }
 
 async function pingCommand(sock, chatId, message) {
     try {
-        const start = Date.now();
-        await sock.sendMessage(chatId, { text: 'Pong!' }, { quoted: message });
-        const end = Date.now();
-        const ping = Math.round((end - start) / 2);
+        const before = Date.now();
+        await sock.sendMessage(chatId, { react: { text: '⚡', key: message.key } });
+        const latency = Date.now() - before;
 
-        const uptimeInSeconds = process.uptime();
-        const uptimeFormatted = formatTime(uptimeInSeconds);
+        const uptime = formatTime(Math.floor(process.uptime()));
+        const mem = process.memoryUsage();
+        const rss = (mem.rss / 1024 / 1024).toFixed(1);
+        const heap = (mem.heapUsed / 1024 / 1024).toFixed(1);
+        const heapTotal = (mem.heapTotal / 1024 / 1024).toFixed(1);
+        const cpuLoad = (os.loadavg()[0]).toFixed(2);
+        const bar = memBar(parseFloat(heap), parseFloat(heapTotal));
 
-        const botInfo = `
-┏━━〔 🤖 𝐊𝐧𝐢𝐠𝐡𝐭𝐁𝐨𝐭-𝐌𝐃 〕━━┓
-┃ 🚀 Ping     : ${ping} ms
-┃ ⏱️ Uptime   : ${uptimeFormatted}
-┃ 🔖 Version  : v${settings.version}
-┗━━━━━━━━━━━━━━━━━━━┛`.trim();
+        const text =
+            `🦇 *IANENIGMA MD BOT — STATUS*\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `⚡ *Ping:*    ${latency} ms\n` +
+            `⏱️ *Uptime:*  ${uptime}\n` +
+            `🔖 *Version:* v${settings.version || '1.0.0'}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `🧠 *RAM (RSS):*  ${rss} MB\n` +
+            `📦 *Heap:*  ${heap} / ${heapTotal} MB\n` +
+            `   [${bar}]\n` +
+            `💻 *CPU load:* ${cpuLoad}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `✅ *Gotham is safe.*`;
 
-        // Reply to the original message with the bot info
-        await sock.sendMessage(chatId, { text: botInfo},{ quoted: message });
-
-    } catch (error) {
-        console.error('Error in ping command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Failed to get bot status.' });
+        await sock.sendMessage(chatId, { text }, { quoted: message });
+    } catch (err) {
+        console.error('Ping command error:', err);
+        await sock.sendMessage(chatId, { text: '❌ Failed to get bot status.' }, { quoted: message });
     }
 }
 
