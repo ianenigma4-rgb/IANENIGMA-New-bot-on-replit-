@@ -401,26 +401,38 @@ async function startXeonBotInc() {
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
             const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401
-            const shouldReconnect = !isLoggedOut
 
-            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
-
-            if (isLoggedOut) {
-                console.log(chalk.red('Session logged out or unauthorized. To re-pair: delete the ./session folder and restart the bot. (PHONE_NUMBER env var must be set for auto-pairing)'))
-            }
+            console.log(chalk.red(`Connection closed — code: ${statusCode}`))
 
             if (statusCode === DisconnectReason.connectionReplaced) {
-                console.log(chalk.red('⚠️ CONFLICT: WhatsApp is open on another device/browser. Please close all other WhatsApp Web sessions and linked devices, then the bot will reconnect automatically.'))
+                console.log(chalk.red('⚠️ CONFLICT: Bot is open on another device. Waiting 30s then reconnecting...'))
                 await delay(30000)
                 startXeonBotInc()
                 return
             }
 
-            if (shouldReconnect) {
-                console.log(chalk.yellow('Reconnecting...'))
-                await delay(5000)
+            if (isLoggedOut) {
+                // Session expired or revoked — wipe it so a fresh pair can happen on restart
+                console.log(chalk.red('🔐 Session expired/logged out. Clearing old session and re-pairing...'))
+                try {
+                    const sessionFiles = require('fs').readdirSync(SESSION_DIR)
+                    for (const f of sessionFiles) {
+                        if (f !== 'HOW_TO_USE.txt') {
+                            try { require('fs').unlinkSync(require('path').join(SESSION_DIR, f)) } catch {}
+                        }
+                    }
+                    console.log(chalk.yellow('🗑️  Old session cleared.'))
+                } catch {}
+                console.log(chalk.yellow(`📲 A new pairing code will appear — enter it in WhatsApp:\n   Settings → Linked Devices → Link a Device`))
+                await delay(3000)
                 startXeonBotInc()
+                return
             }
+
+            // All other disconnects — just reconnect
+            console.log(chalk.yellow('Reconnecting...'))
+            await delay(5000)
+            startXeonBotInc()
         }
     })
 
