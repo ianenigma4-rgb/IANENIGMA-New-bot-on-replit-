@@ -16,26 +16,39 @@ app.listen(port, () => {
 })
 
 // ─── SESSION LOADER ─────────────────────────────────────────────────────────
-// If SESSION_ID env var is set (base64-encoded creds.json from knight-bot
-// pairing site), decode it and write to ./session/creds.json so the bot
-// can authenticate without manual pairing on each restart.
+// Reads SESSION_ID env var (base64-encoded creds.json) and writes it to
+// the session folder using an ABSOLUTE path so it works on any host panel.
+// Handles multiple common formats:
+//   • plain base64 of creds.json
+//   • PREFIX;;;base64  (e.g. KNIGHT;;;xxx  or  IANENIGMA;;;xxx)
+//   • data:...;base64,xxx  (data URI format)
+const SESSION_DIR = require('path').join(__dirname, 'session')
 ;(function loadSessionFromEnv() {
     const sessionId = process.env.SESSION_ID
-    if (!sessionId) return
+    if (!sessionId) {
+        console.log('ℹ️  No SESSION_ID env var found — will use local session or pair fresh')
+        return
+    }
     try {
         const fs2 = require('fs')
-        const sessionDir = './session'
-        if (!fs2.existsSync(sessionDir)) fs2.mkdirSync(sessionDir, { recursive: true })
-        const credsPath = `${sessionDir}/creds.json`
-        // Allow "data:..." prefix format some pairing sites use
-        const raw = sessionId.replace(/^data:[^;]+;base64,/, '').trim()
+        if (!fs2.existsSync(SESSION_DIR)) fs2.mkdirSync(SESSION_DIR, { recursive: true })
+        const credsPath = require('path').join(SESSION_DIR, 'creds.json')
+
+        // Strip any known prefix formats before the base64 payload
+        let raw = sessionId.trim()
+        // Format: ANYTHING;;;base64payload
+        if (raw.includes(';;;')) raw = raw.split(';;;').pop().trim()
+        // Format: data:...;base64,payload
+        raw = raw.replace(/^data:[^;]+;base64,/, '').trim()
+
         const decoded = Buffer.from(raw, 'base64').toString('utf8')
-        // Validate it is valid JSON before writing
+        // Validate JSON before writing
         JSON.parse(decoded)
         fs2.writeFileSync(credsPath, decoded, 'utf8')
-        console.log('✅ Session loaded from SESSION_ID env var')
+        console.log('✅ Session loaded from SESSION_ID — skipping pairing')
     } catch (e) {
-        console.error('⚠️  Failed to decode SESSION_ID — make sure it is the raw base64 from the pairing site:', e.message)
+        console.error('⚠️  SESSION_ID decode failed:', e.message)
+        console.error('    Make sure SESSION_ID is the base64 string from the pairing site (with no extra spaces)')
     }
 })()
 // ────────────────────────────────────────────────────────────────────────────
@@ -109,7 +122,15 @@ let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 
 global.botname = "IANENIGMA MD BOT"
 global.themeemoji = "•"
-const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code")
+
+// Only request a pairing code if there is NO existing session already loaded.
+// If SESSION_ID was set (and decoded above), creds.json already exists → skip pairing.
+const hasExistingSession = (() => {
+    try {
+        return fs.existsSync(path.join(SESSION_DIR, 'creds.json'))
+    } catch { return false }
+})()
+const pairingCode = !hasExistingSession && (!!phoneNumber || process.argv.includes("--pairing-code"))
 const useMobile = process.argv.includes("--mobile")
 
 // Only create readline interface if we're in an interactive environment
@@ -127,7 +148,7 @@ const question = (text) => {
 async function startXeonBotInc() {
     try {
         let { version, isLatest } = await fetchLatestBaileysVersion()
-        const { state, saveCreds } = await useMultiFileAuthState(`./session`)
+        const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
         const msgRetryCounterCache = new NodeCache()
 
         const XeonBotInc = makeWASocket({
