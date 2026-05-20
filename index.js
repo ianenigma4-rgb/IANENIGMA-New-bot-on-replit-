@@ -39,6 +39,17 @@ const SESSION_DIR = require('path').join(__dirname, 'session')
         if (!fs2.existsSync(SESSION_DIR)) fs2.mkdirSync(SESSION_DIR, { recursive: true })
         const credsPath = require('path').join(SESSION_DIR, 'creds.json')
 
+        // Option A takes priority: never overwrite an existing valid creds.json
+        if (fs2.existsSync(credsPath)) {
+            try {
+                const existing = JSON.parse(fs2.readFileSync(credsPath, 'utf8'))
+                if (existing && existing.noiseKey) {
+                    console.log('✅ session/creds.json already present — SESSION_ID skipped (file takes priority)')
+                    return
+                }
+            } catch { /* existing file is invalid, overwrite it */ }
+        }
+
         // Strip any known prefix formats before the base64 payload
         let raw = sessionId.trim()
         // Format: ANYTHING;;;base64payload
@@ -46,16 +57,41 @@ const SESSION_DIR = require('path').join(__dirname, 'session')
         // Format: data:...;base64,payload
         raw = raw.replace(/^data:[^;]+;base64,/, '').trim()
 
-        const decoded = Buffer.from(raw, 'base64').toString('utf8')
-        // Validate JSON before writing
-        JSON.parse(decoded)
-        // Option A takes priority: never overwrite an existing creds.json
-        if (fs2.existsSync(credsPath)) {
-            console.log('✅ session/creds.json already exists — SESSION_ID not applied (Option A wins)')
+        // Try to decode in multiple ways and find valid creds JSON
+        let decoded = null
+
+        // Try 1: value is already raw JSON (starts with {)
+        if (raw.startsWith('{')) {
+            try { JSON.parse(raw); decoded = raw } catch { }
+        }
+
+        // Try 2: standard base64
+        if (!decoded) {
+            try {
+                const attempt = Buffer.from(raw, 'base64').toString('utf8')
+                JSON.parse(attempt)
+                decoded = attempt
+            } catch { }
+        }
+
+        // Try 3: URL-safe base64 (replace - with + and _ with /)
+        if (!decoded) {
+            try {
+                const urlSafe = raw.replace(/-/g, '+').replace(/_/g, '/')
+                const attempt = Buffer.from(urlSafe, 'base64').toString('utf8')
+                JSON.parse(attempt)
+                decoded = attempt
+            } catch { }
+        }
+
+        if (!decoded) {
+            console.error('⚠️  SESSION_ID could not be decoded as valid creds JSON.')
+            console.error('    → Put your creds.json directly in the session/ folder instead.')
             return
         }
+
         fs2.writeFileSync(credsPath, decoded, 'utf8')
-        console.log('✅ Session loaded from SESSION_ID env var — skipping pairing')
+        console.log('✅ Session loaded from SESSION_ID — skipping pairing')
     } catch (e) {
         console.error('⚠️  SESSION_ID decode failed:', e.message)
         console.error('    Make sure SESSION_ID is the base64 string from the pairing site (with no extra spaces)')
