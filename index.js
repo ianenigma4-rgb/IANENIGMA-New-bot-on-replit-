@@ -169,14 +169,6 @@ let owner = JSON.parse(fs.readFileSync('./data/owner.json'))
 global.botname = "IANENIGMA MD BOT"
 global.themeemoji = "•"
 
-// Only request a pairing code if there is NO existing session already loaded.
-// If SESSION_ID was set (and decoded above), creds.json already exists → skip pairing.
-const hasExistingSession = (() => {
-    try {
-        return fs.existsSync(path.join(SESSION_DIR, 'creds.json'))
-    } catch { return false }
-})()
-const pairingCode = !hasExistingSession && (!!phoneNumber || process.argv.includes("--pairing-code"))
 const useMobile = process.argv.includes("--mobile")
 
 // Only create readline interface if we're in an interactive environment
@@ -193,6 +185,16 @@ const question = (text) => {
 
 async function startXeonBotInc() {
     try {
+        // Re-check fresh every call — handles post-logout re-pair correctly
+        const sessionCredsExist = (() => {
+            try {
+                const raw = fs.readFileSync(path.join(SESSION_DIR, 'creds.json'), 'utf8')
+                const parsed = JSON.parse(raw)
+                return !!(parsed && parsed.noiseKey)
+            } catch { return false }
+        })()
+        const pairingCode = !sessionCredsExist && (!!phoneNumber || process.argv.includes("--pairing-code"))
+
         let { version, isLatest } = await fetchLatestBaileysVersion()
         const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
         const msgRetryCounterCache = new NodeCache()
@@ -200,7 +202,7 @@ async function startXeonBotInc() {
         const XeonBotInc = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            printQRInTerminal: !pairingCode,
+            printQRInTerminal: false,
             // ── ANTI-BAN: spoof a real Android WhatsApp client fingerprint ──
             browser: ["IANENIGMA-BOT", "Chrome", "4.0.0"],
             auth: {
